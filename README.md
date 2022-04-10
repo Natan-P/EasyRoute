@@ -1,6 +1,6 @@
 # EasyRoute
 
-An easy-to-use program that automatically generates "routing puzzles".
+An easy-to-use program that automatically generates "routing puzzles".\
 These are puzzles where you get an instruction set of cardinal directions,
 where one has to follow there instructions to get to the end.
 
