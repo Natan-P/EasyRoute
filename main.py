@@ -23,7 +23,7 @@ def parsePos(i2: int, i1: int):
     x1, y1 = i1 % 6, i1 // 6
 
     if abs(x1 - x2) != abs(y1 - y2) and not (x1 - x2 == 0 or y1 - y2 == 0):
-        raise Exception(f"Path does not follow the Chess Queen's movement ({x1}, {x2} → {y1}, {y2} is invalid)")
+        return None
     xd, yd = x1 - x2, y1 - y2
     r = str(max(abs(xd), abs(yd)))
     if r == "0":
@@ -68,6 +68,8 @@ class Board:
                 rand = random.choice(bias), random.choice(dirs)
                 if x - 1 <= x + rand[0] * f.get(rand[1]).get("x") < self.size[0] and \
                    y - 1 <= y + rand[0] * f.get(rand[1]).get("y") < self.size[1]:
+                    if parsePos(self.pos[j], self.pos[j + 1]) is None:
+                        continue
                     self.pos.append(x + rand[0] * f.get(rand[1]).get("x") + 6 * (y + rand[0] * f.get(rand[1]).get("y")))
                     z = False
                     x = x + rand[0] * f.get(rand[1]).get("x")
