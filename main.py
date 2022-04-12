@@ -68,7 +68,7 @@ class Board:
                 rand = random.choice(bias), random.choice(dirs)
                 if x - 1 <= x + rand[0] * f.get(rand[1]).get("x") < self.size[0] and \
                    y - 1 <= y + rand[0] * f.get(rand[1]).get("y") < self.size[1]:
-                    if parsePos(self.pos[j], self.pos[j + 1]) is None:
+                    if parsePos(self.pos[j], x + rand[0] * f.get(rand[1]).get("x") + 6 * (y + rand[0] * f.get(rand[1]).get("y"))) is None:
                         continue
                     self.pos.append(x + rand[0] * f.get(rand[1]).get("x") + 6 * (y + rand[0] * f.get(rand[1]).get("y")))
                     z = False
