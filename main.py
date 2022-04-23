@@ -6,6 +6,7 @@
 
 import random
 import tkinter as tk
+import tkinter.ttk as ttk
 
 
 def parsePath(i: str, s: int):  # i would NOT advise you to even try to interpret what this is.
@@ -62,8 +63,16 @@ class Board:
         self.squareSize = [sqW, sqH]  # initializes square size to a square
         
         self.size = sizes
-        self.cnv = tk.Canvas(window, width=sqW * self.size[0], height=sqH * self.size[1])
-        self.cnv.pack()
+        self.cnv = tk.Canvas(window, width=sqW * self.size[0] + 1, height=sqH * self.size[1] + 1)
+        self.cnv.pack(side="left")
+        for j in range(sizes[0]):  # board has sizes[0] vertical squares + right border
+            for z in range(sizes[1]):  # board has sizes[1] horizontal squares + bottom border
+                self.cnv.create_rectangle(sqW * j + 2, sqH * z + 2, sqW * (j + 1) + 2, sqH * (z + 1) + 2)
+        
+        self.frm = ttk.Frame(window)
+        self.frm.pack(anchor="n", side="right")
+        self.btn1 = ttk.Button(self.frm, text="New Game")
+        self.btn1.pack(side="top")
         self.pos = list()
         
         if xPos is not None:
@@ -89,12 +98,17 @@ class Board:
             x, y = self.pos[-1] % 6, self.pos[-1] // 6
         bias = [1, 1, 1, 1, 1, 1, 2, 2, 2, 3, 3, 4, 5]  # RNG bias
         dirs = ["n", "ne", "e", "se", "s", "sw", "w", "nw"]  # thing for direction selection
-        f = {"n": {"y": -1, "x": 0},  "ne": {"y": -1, "x": 1},
-             "e": {"y": 0,  "x": 1},  "se": {"y": 1,  "x": 1},
-             "s": {"y": 1,  "x": 0},  "sw": {"y": 1,  "x": -1},
-             "w": {"y": 0,  "x": -1}, "nw": {"y": -1, "x": -1}}
+        f = {"n": {"y": -1, "x": 0}, "ne": {"y": -1, "x": 1},
+             "e": {"y": 0, "x": 1}, "se": {"y": 1, "x": 1},
+             "s": {"y": 1, "x": 0}, "sw": {"y": 1, "x": -1},
+             "w": {"y": 0, "x": -1}, "nw": {"y": -1, "x": -1}}
         z = True  # defines whether to do another try of path generation or not
+        flag = False  # draw a flag on this line (set to true if it's the last step of the sequence)
         
+        self.cnv.create_oval(x % 6 * self.squareSize[0] + .5 * self.squareSize[0] - 5,
+                             y // 6 * self.squareSize[1] + .5 * self.squareSize[1] - 5,
+                             x % 6 * self.squareSize[0] + .5 * self.squareSize[0] + 5,
+                             y // 6 * self.squareSize[1] + .5 * self.squareSize[1] + 5)
         for b in range(len(times)):
             self.paths.append(list())
             for j in range(times[b]):
@@ -102,13 +116,36 @@ class Board:
                     rand = random.choice(bias), random.choice(dirs)
                     if -1 < x + f.get(rand[1]).get("x") * rand[0] < self.size[0] and \
                             -1 < y + f.get(rand[1]).get("y") * rand[0] < self.size[1]:
-                        self.pos.append(x + rand[0] * f.get(rand[1]).get("x") +
-                                        6 * (y + rand[0] * f.get(rand[1]).get("y")))
+                        endPos = x + rand[0] * f.get(rand[1]).get("x") + 6 * (y + rand[0] * f.get(rand[1]).get("y"))
+                        self.pos.append(endPos)
+                        self.paths[b].append(parsePos(self.pos[j + b * times[b]], self.pos[j + b * times[b] + 1]))
+                        if j == times[b] - 1:
+                            flag = True
+                        self.drawPath(x + y * 6, endPos, flag)
+                        flag = False
                         z = False
                         x = x + rand[0] * f.get(rand[1]).get("x")
                         y = y + rand[0] * f.get(rand[1]).get("y")
-                        self.paths[b].append(parsePos(self.pos[j], self.pos[j + 1]))
                 z = True
+    
+    def drawPath(self, p1: int, p2: int, flag=False, clr="black"):
+        """
+        p1 == position 1 (starting point)
+        p2 == position 2 (ending point)
+        flag == whether to draw a (rudimentary) flag at the end or not
+        """
+        x1, y1, x2, y2 = \
+            p1 % 6 * self.squareSize[0] + .5 * self.squareSize[0], \
+            p1 // 6 * self.squareSize[1] + .5 * self.squareSize[1], \
+            p2 % 6 * self.squareSize[0] + .5 * self.squareSize[0], \
+            p2 // 6 * self.squareSize[1] + .5 * self.squareSize[1]
+        self.cnv.create_line(x1, y1, x2, y2, fill=clr, arrow="last", tags=("line", "arrow", clr))
+        if flag:
+            self.cnv.create_line(x2, y2 + 10,
+                                 x2, y2 - 10,
+                                 x2 + 10, y2 - 5,
+                                 x2, y2,
+                                 fill=clr, tags=("flag", clr))
 
 
 win = tk.Tk()
@@ -116,8 +153,10 @@ win.title("EasyRoute")
 boardSize = [6, 6]
 boardIndicators = [["1", "2", "3", "4", "5", "6"],
                    ["A", "B", "C", "D", "E", "F"]]  # how the board is indicated at the sides (1st E-W, 2nd N-S)
-directions = ["S", "V", "J", "Z"]  # cardinal direction names of the board (direction definition going ↑→↓←)
-baseDirs = ["n", "e", "s", "w"]    # cardinal directions that are used in the code
+directions = ("S", "V", "J", "Z")  # cardinal direction names of the board (direction definition going ↑→↓←)
+baseDirs = ("n", "e", "s", "w")  # cardinal directions that are used in the code
+# note that the hardcoded directions will always be lowercase and output will always be uppercase in the code
+# the output shown to the user will be formatted later
 pathNums = [20, 15, 10, 5]
 if __name__ == "__main__":
     # path = "2SV"
@@ -131,3 +170,4 @@ if __name__ == "__main__":
     print(brd.paths)
     win.mainloop()
 # newBoard(boardSize)
+print("a")
