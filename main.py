@@ -72,7 +72,7 @@ class Board:
     """
     Class which houses all the board generation and position functions.
     """
-    
+
     def __init__(self, window, sizes: list, sqW=50, sqH=50, xPos=None, yPos=None):
         """
          self.size == size of the board, being [X size, Y size]
@@ -82,44 +82,63 @@ class Board:
         self.squareSize = [sqW, sqH]  # initializes square size to a square
         self.size = sizes
 
+        self.linesToDraw = list()
+
         self.mainframe = ttk.Frame(window, padding=(3, 3, 3, 3))
         self.mainframe.grid(column=0, row=0)
+
         self.cnv = tk.Canvas(self.mainframe, width=sqW * self.size[0] + 1, height=sqH * self.size[1] + 1)
         self.cnv.grid(column=0, row=0)
-        for j in range(self.size[0]):  # board has sizes[0] vertical squares + right border
-            for z in range(self.size[1]):  # board has sizes[1] horizontal squares + bottom border
-                self.cnv.create_rectangle(sqW * j + 2, sqH * z + 2, sqW * (j + 1) + 2, sqH * (z + 1) + 2, tags="grid")
-        
+
         self.buttonframe = ttk.Frame(window)
         self.buttonframe.grid(column=1, row=0)
-        self.randVal = tk.BooleanVar()
+        self.randVal = tk.BooleanVar(value=True)
         self.newButton = ttk.Button(self.buttonframe, text="New Game",
                                     command=lambda: self.onNewGame(times=pathNums, rand=self.randVal))
         self.newButton.grid(column=0, row=0)
         self.randomCheck = tk.BooleanVar()
         self.newRandomCheck = ttk.Checkbutton(self.buttonframe, text="Randomize Start Position?", variable=self.randVal)
         self.newRandomCheck.grid(column=1, row=0)
+        self.resizeButton = ttk.Button(self.buttonframe, text="Resize Map",
+                                       command=lambda: print("a"))
         self.pos = list()
-        
+
         if xPos is not None:
             self.pos.append(xPos)  # initializes first X coordinate
+
         else:
             self.pos.append(random.randint(0, self.size[0]-1))
         if yPos is not None:
             self.pos[-1] += yPos * sizes[0]  # same as before but Y coord
+
         else:
             self.pos[-1] += random.randint(0, self.size[1]-1) * sizes[0]
-        
+
         self.paths = list()
-    
+        self.generatePath(times=pathNums)
+
+    def initCanvas(self):
+        sqW, sqH = self.squareSize[0], self.squareSize[1]
+        self.cnv.config(width=sqW * self.size[0] + 1, height=sqH * self.size[1] + 1)
+        self.cnv.delete("all")
+        for j in range(self.size[0]):  # board has sizes[0] vertical squares + right border
+            for z in range(self.size[1]):  # board has sizes[1] horizontal squares + bottom border
+                self.cnv.create_rectangle(sqW * j + 2, sqH * z + 2, sqW * (j + 1) + 2, sqH * (z + 1) + 2, tags="grid")
+        self.centeredCircle(self.cnv, self.linesToDraw[0][0] % self.size[0], self.linesToDraw[0][0] // self.size[1], fill="blue")
+        self.drawPath()
+
     def generatePath(self, times: list, startPos: int = None):
         """
         startPos == position to start from
            times == times to repeat, with integers in a list that define how many turns each player takes
         """
+
+        self.linesToDraw = list()
+
         if startPos is not None:
             x, y = startPos % self.size[0], startPos // self.size[1]
             # doubles as an x/y coordinate, and as a margin to the top-left edge of the board
+
         else:
             x, y = self.pos[-1] % self.size[0], self.pos[-1] // self.size[1]
         bias = [1, 1, 1, 1, 1, 1, 2, 2, 2, 3, 3, 4, 5]  # RNG bias
@@ -131,7 +150,6 @@ class Board:
         z = True  # defines whether to do another try of path generation or not
         flag = False  # draw a flag on this line (set to true if it's the last step of the sequence)
 
-        self.centeredCircle(self.cnv, x, y, fill="blue")
         for b in range(len(times)):
             self.paths.append(list())
             for j in range(times[b]):
@@ -145,13 +163,19 @@ class Board:
                         self.paths[b].append(parsePos(self.pos[j + b * times[b] + 1], self.pos[j + b * times[b]]))
                         if j == times[b] - 1:
                             flag = True
-                        self.drawPathLine(x + y * self.size[0], endPos, flag)
+                        self.linesToDraw.append((x + y * self.size[0], endPos, flag))
                         flag = False
                         z = False
                         x = x + rand[0] * f.get(rand[1]).get("x")
                         y = y + rand[0] * f.get(rand[1]).get("y")
                 z = True
-    
+        self.initCanvas()
+
+    def drawPath(self):
+        for i in self.linesToDraw:
+            assert type(i) == tuple
+            self.drawPathLine(i[0], i[1], i[2])
+
     def drawPathLine(self, p1: int, p2: int, flag=False, clr="black"):
         """
           p1 == position 1 (starting point)
@@ -212,7 +236,17 @@ class Board:
         self.paths = list()
         self.generatePath(times=times)
 
-#   ### Drawing Utils ###
+    def onResize(self):
+        prompt = tk.Toplevel
+        frm = ttk.Frame(prompt)
+        frm.grid()
+        lbl = ttk.Label(frm, text="Input the size of a square (px)")
+        lbl.grid(column=0, row=0, rowspan=2)
+        inp = tk.IntVar(value=50)
+        box = ttk.Spinbox(frm, from_=10, to=100, increment=5, textvariable=inp)
+        scl = ttk.Scale(frm, from_=10, to=100, variable=inp)
+
+    #   ### Drawing Utils ###
 
     def centeredCircle(self, canvas: tk.Canvas, x, y, r: int = 5, color: str = "black", fill: str = ""):
         return canvas.create_oval(x * self.squareSize[0] + .5 * self.squareSize[0] - r,
@@ -239,10 +273,7 @@ if __name__ == "__main__":
     # path = "2SV"
     # print(parsePath(path, 13))
     # print(parsePos(13, parsePath(path, 13)))
-    brd = Board(win, boardSize)
-    # print(brd.pos)
-    # print(brd.pos[-1])
-    brd.generatePath(times=pathNums)
+    brd = Board(win, boardSize, sqW=60, sqH=60)
     print(brd.pos)
     print(brd.paths)
     win.mainloop()
