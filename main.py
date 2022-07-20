@@ -46,11 +46,11 @@ def parsePath(i: str, s: int):  # edit: returned to the code and realized it is 
 
 
 def parsePos(i1: int, i2: int):  # same comment as before; inverse of the previous function
-    x1, y1 = i1 % boardSize[0], i1 // boardSize[1]  # figure out x and y coords of the start and end
-    x2, y2 = i2 % boardSize[0], i2 // boardSize[1]
+    x1, y1 = i1 % boardSize[0], i1 // boardSize[0]  # figure out x and y coords of the start and end
+    x2, y2 = i2 % boardSize[0], i2 // boardSize[0]
 
     if abs(x1 - x2) != abs(y1 - y2) and not (x1 - x2 == 0 or y1 - y2 == 0):  # check if this move is possible
-        raise Exception(f"sumthin went wrong ({i1} -> {i2}; {x1}, {y1} -> {x2}, {y2})")
+        raise Exception(f"something went wrong ({i1} -> {i2}; {x1}, {y1} -> {x2}, {y2})")
     xd, yd = x2 - x1, y2 - y1
     d = str(max(abs(xd), abs(yd)))
     if d == "0":
@@ -102,6 +102,7 @@ class Board:
         self.resizeButton = ttk.Button(self.buttonframe, text="Resize Map",
                                        command=lambda: self.onResize())
         self.resizeButton.grid(column=0, row=1)
+
         self.pos = list()
 
         if xPos is not None:
@@ -131,7 +132,7 @@ class Board:
                                         sq[0] * (j + 1) + 2, sq[1] * (z + 1) + 2, tags="grid")
         if draw:
             self.centeredCircle(canvas, self.linesToDraw[0][0] % size[0],
-                                self.linesToDraw[0][0] // size[1], fill="blue")
+                                self.linesToDraw[0][0] // size[0], fill="blue")
             self.drawPath()
 
     def generatePath(self, times: list, startPos: int = None):
@@ -143,12 +144,12 @@ class Board:
         self.linesToDraw = list()
 
         if startPos is not None:
-            x, y = startPos % self.size[0], startPos // self.size[1]
+            x, y = startPos % self.size[0], startPos // self.size[0]
             # doubles as an x/y coordinate, and as a margin to the top-left edge of the board
 
         else:
-            x, y = self.pos[-1] % self.size[0], self.pos[-1] // self.size[1]
-        bias = [1, 1, 1, 1, 1, 1, 2, 2, 2, 3, 3, 4, 5]  # RNG bias
+            x, y = self.pos[-1] % self.size[0], self.pos[-1] // self.size[0]
+        bias = [1, 1, 2, 2, 2, 3, 3, 4, 4, 5]  # RNG bias
         dirs = ["n", "ne", "e", "se", "s", "sw", "w", "nw"]  # thing for direction selection
         f = {"n": {"y": -1, "x": 0}, "ne": {"y": -1, "x": 1},
              "e": {"y": 0, "x": 1}, "se": {"y": 1, "x": 1},
@@ -179,27 +180,32 @@ class Board:
         self.initCanvas(self.cnv)
 
     def drawPath(self):
-        for i in self.linesToDraw:
-            assert type(i) == tuple
-            self.drawPathLine(i[0], i[1], i[2])
+        print(self.pos)
+        print(self.paths)
+        for i, j in zip(self.linesToDraw, range(len(self.linesToDraw))):
+            self.drawPathLine(i[0], i[1], i[2], index=j)
 
-    def drawPathLine(self, p1: int, p2: int, flag=False, clr="black"):
+    def drawPathLine(self, p1: int, p2: int, flag=False, clr="black", canvas: tk.Canvas = None, index="unindexed"):
         """
           p1 == position 1 (starting point)
           p2 == position 2 (ending point)
         flag == whether to draw a (rudimentary) flag at the end or not
         """
-        f, j = self.size[0], self.size[1]  # shorthands, no other purpose
+
+        if canvas is None:
+            canvas = self.cnv
+
+        s = self.size[0]  # shorthand, no other purpose
 
         x1, y1, = \
-            p1 % f * self.squareSize[0] + .5 * self.squareSize[0], \
-            p1 // j * self.squareSize[1] + .5 * self.squareSize[1]
+            p1 % s * self.squareSize[0] + .5 * self.squareSize[0], \
+            p1 // s * self.squareSize[1] + .5 * self.squareSize[1]
         x2, y2 = \
-            p2 % f * self.squareSize[0] + .5 * self.squareSize[0], \
-            p2 // j * self.squareSize[1] + .5 * self.squareSize[1]
-        self.cnv.create_line(x1, y1, x2, y2, fill=clr, arrow="last", tags=("line", "arrow", clr))
+            p2 % s * self.squareSize[0] + .5 * self.squareSize[0], \
+            p2 // s * self.squareSize[1] + .5 * self.squareSize[1]
+        canvas.create_line(x1, y1, x2, y2, fill=clr, arrow="last", tags=("line", "arrow", clr, str(index)))
         if flag:
-            self.flag(self.cnv, x2, y2, fill="cyan")
+            self.flag(canvas, x2, y2, fill="cyan")
 
     def onNewGame(self, times: list, rand: tk.BooleanVar):
         def newGameCommand(e, scaleVar: tk.IntVar, x, y):
@@ -285,7 +291,7 @@ class Board:
 
 win = tk.Tk()
 win.title("EasyRoute")
-boardSize = [7, 6]
+boardSize = [6, 6]
 boardIndicators = [["1", "2", "3", "4", "5", "6"],
                    ["A", "B", "C", "D", "E", "F"]]  # how the board is indicated at the sides (1st E-W, 2nd N-S)
 directions = ("S", "V", "J", "Z")  # cardinal direction names of the board (direction definition going ↑→↓←)
@@ -293,6 +299,7 @@ baseDirs = ("n", "e", "s", "w")  # cardinal directions that are used in the code
 # note that the hardcoded directions will always be lowercase and output will always be uppercase in the code
 # the output shown to the user will be formatted later
 pathNums = [20, 15, 10, 5]
+
 if __name__ == "__main__":
     # path = "2SV"
     # print(parsePath(path, 13))

@@ -1,11 +1,2 @@
 # EasyRoute
-
-An easy-to-use program that automatically generates "routing puzzles".\
-These are puzzles where you get an instruction set of cardinal directions,
-where one has to follow these instructions to get to the end.
-
-Even though this sounds pretty easy, it is a lot harder in practice
-because there is  a high likelihood of making a mistake.
-
-Until now, we have had to make these puzzles by hand, which of course
-brings human error.
+A thingy that makes a puzzle that only I know of, featuring the worst UI/UX you've seen in a while!
