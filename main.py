@@ -26,6 +26,7 @@ Good luck!
 import random
 import tkinter as tk
 import tkinter.ttk as ttk
+import tkinter.messagebox as msgbox
 
 
 def parsePath(i: str, s: int):  # edit: returned to the code and realized it is unreadable, added comments
@@ -45,25 +46,29 @@ def parsePath(i: str, s: int):  # edit: returned to the code and realized it is 
     return y
 
 
-def parsePos(i1: int, i2: int):  # same comment as before; inverse of the previous function
-    x1, y1 = i1 % boardSize[0], i1 // boardSize[0]  # figure out x and y coords of the start and end
+def parsePos(i1: int, i2: int, dirs: tuple = None, num: bool = True):  # inverse of the previous function
+    if dirs is None:
+        dirs = directions
+    x1, y1 = i1 % boardSize[0], i1 // boardSize[0]  # figure out x and y coordinates of the start and end
     x2, y2 = i2 % boardSize[0], i2 // boardSize[0]
 
     if abs(x1 - x2) != abs(y1 - y2) and not (x1 - x2 == 0 or y1 - y2 == 0):  # check if this move is possible
         raise Exception(f"something went wrong ({i1} -> {i2}; {x1}, {y1} -> {x2}, {y2})")
     xd, yd = x2 - x1, y2 - y1
-    d = str(max(abs(xd), abs(yd)))
-    if d == "0":
-        d = ""
+    d = str()
+    if num:
+        d = str(max(abs(xd), abs(yd)))
+        if d == "0":
+            d = ""
     
     if yd < 0:
-        d += directions[0]
+        d += dirs[0]
     elif yd > 0:
-        d += directions[2]
+        d += dirs[2]
     if xd < 0:
-        d += directions[3]
+        d += dirs[3]
     elif xd > 0:
-        d += directions[1]
+        d += dirs[1]
     
     return d
 
@@ -87,10 +92,11 @@ class Board:
         self.mainframe = ttk.Frame(window, padding=(3, 3, 3, 3))
         self.mainframe.grid(column=0, row=0)
 
-        self.cnv = tk.Canvas(self.mainframe, width=sqW * self.size[0] + 1, height=sqH * self.size[1] + 1)
+        self.cnv = tk.Canvas(self.mainframe, width=sqW * self.size[0] + 1, height=sqH * self.size[1] + 1,
+                             background="#ffffff", bd=0, highlightthickness=0)
         self.cnv.grid(column=0, row=0)
 
-        self.buttonframe = ttk.Frame(window)
+        self.buttonframe = ttk.Frame(self.mainframe)
         self.buttonframe.grid(column=1, row=0)
         self.randVal = tk.BooleanVar(value=True)
         self.newButton = ttk.Button(self.buttonframe, text="New Game",
@@ -102,6 +108,9 @@ class Board:
         self.resizeButton = ttk.Button(self.buttonframe, text="Resize Map",
                                        command=lambda: self.onResize())
         self.resizeButton.grid(column=0, row=1)
+
+        self.outputBox = tk.Text(self.buttonframe, state="disabled")
+        self.outputBox.grid(column=0, row=2, columnspan=2)
 
         self.pos = list()
 
@@ -119,21 +128,29 @@ class Board:
         self.paths = list()
         self.generatePath(times=pathNums)
 
-    def initCanvas(self, canvas: tk.Canvas, draw: bool = True, size: list = None, sq: list = None):
+    def initCanvas(self, canvas: tk.Canvas, draw: bool = True, size: list = None, sq: list = None, lines: list = None):
         if sq is None:
             sq = self.squareSize
         if size is None:
             size = self.size
+        if lines is None:
+            lines = self.linesToDraw
         canvas.config(width=sq[0] * size[0] + 1, height=sq[1] * size[1] + 1)
         canvas.delete("all")
         for j in range(size[0]):  # board has sizes[0] vertical squares + right border
             for z in range(size[1]):  # board has sizes[1] horizontal squares + bottom border
-                canvas.create_rectangle(sq[0] * j + 2, sq[1] * z + 2,
-                                        sq[0] * (j + 1) + 2, sq[1] * (z + 1) + 2, tags="grid")
+                canvas.create_rectangle(sq[0] * j, sq[1] * z,
+                                        sq[0] * (j + 1), sq[1] * (z + 1), outline="#999", tags="grid")
+
+        # in about 2 weeks or less i shall hate myself a lot for hard-coding all the color values but oh well
+
         if draw:
-            self.centeredCircle(canvas, self.linesToDraw[0][0] % size[0],
-                                self.linesToDraw[0][0] // size[0], fill="blue")
-            self.drawPath()
+            self.centeredCircle(canvas, lines[0][0] % size[0],
+                                lines[0][0] // size[0], fill="blue")
+            print(self.pos)
+            print(self.paths)
+            for i, j in zip(lines, range(len(lines))):
+                self.drawPathLine(i[0], i[1], i[2], index=j)
 
     def generatePath(self, times: list, startPos: int = None):
         """
@@ -179,12 +196,6 @@ class Board:
                 z = True
         self.initCanvas(self.cnv)
 
-    def drawPath(self):
-        print(self.pos)
-        print(self.paths)
-        for i, j in zip(self.linesToDraw, range(len(self.linesToDraw))):
-            self.drawPathLine(i[0], i[1], i[2], index=j)
-
     def drawPathLine(self, p1: int, p2: int, flag=False, clr="black", canvas: tk.Canvas = None, index="unindexed"):
         """
           p1 == position 1 (starting point)
@@ -195,6 +206,15 @@ class Board:
         if canvas is None:
             canvas = self.cnv
 
+        h = 3
+
+        s1, s2 = self.squareSize[0]/h, self.squareSize[1]/h
+
+        f = {"n": {"y": 0, "x": -s1}, "ne": {"y": -s2, "x": -s1},
+             "e": {"y": -s2, "x": 0}, "se": {"y": -s2, "x": s1},
+             "s": {"y": 0, "x": s1}, "sw": {"y": s2, "x": s1},
+             "w": {"y": s2, "x": 0}, "nw": {"y": s2, "x": -s1}}
+
         s = self.size[0]  # shorthand, no other purpose
 
         x1, y1, = \
@@ -203,54 +223,67 @@ class Board:
         x2, y2 = \
             p2 % s * self.squareSize[0] + .5 * self.squareSize[0], \
             p2 // s * self.squareSize[1] + .5 * self.squareSize[1]
-        canvas.create_line(x1, y1, x2, y2, fill=clr, arrow="last", tags=("line", "arrow", clr, str(index)))
+        xm, ym = \
+            (x1 + x2) / 2 + f.get(parsePos(p1, p2, dirs=baseDirs, num=False)).get("x"), \
+            (y1 + y2) / 2 + f.get(parsePos(p1, p2, dirs=baseDirs, num=False)).get("y")
+
+        canvas.create_line([x1, y1, xm, ym, x2, y2], smooth=True, fill=clr, arrow="last",
+                           tags=("line", "arrow", clr, str(index)))
         if flag:
             self.flag(canvas, x2, y2, fill="cyan")
 
     def onNewGame(self, times: list, rand: tk.BooleanVar):
-        def newGameCommand(e, scaleVar: tk.IntVar, x, y):
-            scaleVar.set(round(float(e)))
-            canvas.delete("circle")
-            self.centeredCircle(canvas, x.get()-1, y.get()-1, fill="blue")
-
         xPos, yPos = None, None
-
         if not rand.get():
+            exitstatus = False  # what to do after cancelling
+            def newGameCommand(e, scaleVar: tk.IntVar, x, y):
+                scaleVar.set(round(float(e)))
+                canvas.delete("circle")
+                self.centeredCircle(canvas, x.get() - 1, y.get() - 1, fill="blue")
+            def done():
+                nonlocal exitstatus
+                prompt.destroy()
+                exitstatus = True
+            def cancel():
+                prompt.destroy()
             prompt = tk.Toplevel()
-            frm = ttk.Frame(prompt)
+            frm = ttk.Frame(prompt, padding=3)
             frm.grid(column=0, row=0)
 
             topScaleVar = tk.IntVar(value=1)
             botScaleVar = tk.IntVar(value=1)
-            dummy = tk.IntVar()  # god help me, what made me think this is okay
-                                 # oh wait, it works, everything is okay and i do not care
 
-            canvas = tk.Canvas(frm)
-            canvas.grid(column=1, row=1)
+            canvas = tk.Canvas(frm, bd=0, highlightthickness=0)
+            canvas.grid(column=1, row=2)
             self.initCanvas(canvas, draw=False)
 
-            newGameCommand(1, dummy, topScaleVar, botScaleVar)
+            newGameCommand(1, tk.IntVar(), topScaleVar, botScaleVar)
 
+            ttk.Label(frm, text="Enter a start position for your game.").grid(column=0, row=0, columnspan=2)
             topScale = ttk.Scale(frm, orient="horizontal", length=self.squareSize[0]*self.size[0],
                                  from_=1, to=self.size[0], variable=topScaleVar,
                                  command=lambda x: newGameCommand(x, topScaleVar, topScaleVar, botScaleVar))
-            topScale.grid(column=1, row=0)
+            topScale.grid(column=1, row=1)
             botScale = ttk.Scale(frm, orient="vertical", length=self.squareSize[1]*self.size[1],
                                  from_=1, to=self.size[1], variable=botScaleVar,
                                  command=lambda y: newGameCommand(y, botScaleVar, topScaleVar, botScaleVar))
-            botScale.grid(column=0, row=1)
+            botScale.grid(column=0, row=2)
 
-            btn = ttk.Button(frm, command=lambda: prompt.destroy(), text="Done", width=5)
-            btn.grid(column=0, row=0)
+            btnframe = ttk.Frame(frm, padding=(0, 3, 0, 0))
+            btnframe.grid(column=0, row=3, columnspan=2, sticky="se")
+            ttk.Button(btnframe, command=lambda: done(), text="Done").grid(column=0, row=0)
+            ttk.Button(btnframe, command=lambda: cancel(), text="Cancel").grid(column=1, row=0)
 
             prompt.wait_window(prompt)
 
+            if not exitstatus:
+                return
             xPos, yPos = topScaleVar.get()-1, botScaleVar.get()-1
 
             self.cnv.delete("line||flag||circle")
         self.pos = list()
 
-        if xPos is not None:  # literally just reused code, read comments from line 84
+        if xPos is not None:  # literally just reused code, read comments from line 116
             self.pos.append(xPos)
         else:
             self.pos.append(random.randint(0, self.size[0]-1))
@@ -263,18 +296,79 @@ class Board:
         self.generatePath(times=times)
 
     def onResize(self):
-        def resizeDo(this, x):
-            pass
+        def do():
+            try:
+                if inp[0].get() == "":
+                    inp[0].set(str(max(int(inp_[0])-1, 2)))
+                    inp_[0] = inp[0].get()
+                    return
+                if inp[1].get() == "":
+                    inp[1].set(str(max(int(inp_[1])-1, 2)))
+                    inp_[1] = inp[1].get()
+                    return
+                if int(inp[0].get()) > 20 or int(inp[1].get()) > 20:
+                    raise ValueError
+            except ValueError:
+                win.bell()
+                inp[0].set(inp_[0])
+                inp[1].set(inp_[1])
+                return
+            self.size[0], self.size[1] = int(inp[0].get()), int(inp[1].get())
+            inp_[0], inp_[1] = inp[0].get(), inp[1].get()
+            self.initCanvas(cnv, draw=False)
+        exitstatus = False
+
+        def done():
+            nonlocal exitstatus
+            prompt.destroy()
+            exitstatus = True
+
+        def cancel():
+            prompt.destroy()
+
+        oldSize = [int(self.size[0]), int(self.size[1])]
         prompt = tk.Toplevel()
         frm = ttk.Frame(prompt, padding=3)
-        frm.grid()
-        lbl = ttk.Label(frm, text="Input the size of a square (px)")
-        lbl.grid(column=0, row=0, columnspan=2)
-        inp = tk.IntVar(value=50)
-        box = ttk.Spinbox(frm, from_=10, to=100, increment=5, textvariable=inp)
-        scl = ttk.Scale(frm, from_=10, to=100, variable=inp, length=200)
-        box.grid(column=0, row=1)
-        scl.grid(column=1, row=1)
+        frm.grid(column=0, row=0)
+        ttk.Label(frm, text="Enter size of playing field (min 2x2, max 20x20)", padding=(0, 0, 0, 3))\
+            .grid(column=0, row=0, columnspan=2)
+        inp = [tk.StringVar(value=self.size[0]), tk.StringVar(value=self.size[1])]
+        inp_ = [str(self.size[0]), str(self.size[1])]  # backup for validation
+        inp[0].trace("w", lambda a, b, c: do())
+        inp[1].trace("w", lambda a, b, c: do())
+
+        frmL = ttk.Frame(frm, padding=(0, 0, 3, 0))
+        frmR = ttk.Frame(frm)
+        frmL.grid(column=0, row=1)
+        frmR.grid(column=1, row=1)
+
+        ttk.Label(frmL, text="Width: ").grid(column=0, row=0)
+        ttk.Spinbox(frmL, from_=2, to=20, increment=1, textvariable=inp[0]).grid(column=1, row=0)
+        ttk.Label(frmR, text="Height: ").grid(column=0, row=0)
+        ttk.Spinbox(frmR, from_=2, to=20, increment=1, textvariable=inp[1]).grid(column=1, row=0)
+
+        cnv = tk.Canvas(frm, bd=0, highlightthickness=0)
+        cnv.grid(column=0, row=2, columnspan=3)
+
+        btnframe = ttk.Frame(frm, padding=3)
+        btnframe.grid(column=0, row=3, columnspan=2, sticky="se")
+        ttk.Button(btnframe, text="Done", command=lambda: done()).grid(column=0, row=0)
+        ttk.Button(btnframe, text="Cancel", command=lambda: cancel()).grid(column=1, row=0)
+
+        frm.grid_columnconfigure(2, weight=1)
+        do()
+        prompt.wait_window(prompt)
+
+        if not exitstatus:
+            return
+
+        if oldSize == self.size:
+            return
+        if msgbox.askokcancel("Use configuration?", "Do you want to use this board configuration?\n\
+        Your current game will be discarded."):
+            self.newButton.invoke()
+        else:
+            self.size = oldSize
 
     #   ### Drawing Utils ###
 
@@ -295,17 +389,12 @@ boardSize = [6, 6]
 boardIndicators = [["1", "2", "3", "4", "5", "6"],
                    ["A", "B", "C", "D", "E", "F"]]  # how the board is indicated at the sides (1st E-W, 2nd N-S)
 directions = ("S", "V", "J", "Z")  # cardinal direction names of the board (direction definition going ↑→↓←)
-baseDirs = ("n", "e", "s", "w")  # cardinal directions that are used in the code
+baseDirs = ("n", "e", "s", "w")  # cardinal directions that are used in the code, do not change
 # note that the hardcoded directions will always be lowercase and output will always be uppercase in the code
 # the output shown to the user will be formatted later
 pathNums = [20, 15, 10, 5]
 
 if __name__ == "__main__":
-    # path = "2SV"
-    # print(parsePath(path, 13))
-    # print(parsePos(13, parsePath(path, 13)))
     brd = Board(win, boardSize, sqW=50, sqH=50)
-    print(brd.pos)
-    print(brd.paths)
     win.mainloop()
 # newBoard(boardSize)
