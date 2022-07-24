@@ -29,55 +29,12 @@ import tkinter.ttk as ttk
 import tkinter.messagebox as msgbox
 
 
-def parsePath(i: str, s: int):  # edit: returned to the code and realized it is unreadable, added comments
-    c = ("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
-    d = [baseDirs[directions.index(x)] for x in i if not (x in c)]  # direction specified in cardinal directions
-    n = int("".join([x for x in i if x in c]))  # number of steps to do in a direction
-    
-    p = {"n": -boardSize[0], "e": 1, "s": boardSize[0], "w": -1}
-    
-    if n is None:  # if no step is defined, do one step
-        n = 1
-
-    y = s
-    for i in range(len(d)):  # put it all into my stupid one-integer system for coordinates
-        y += (p.get(d[i]) * n)
-    
-    return y
-
-
-def parsePos(i1: int, i2: int, dirs: tuple = None, num: bool = True):  # inverse of the previous function
-    if dirs is None:
-        dirs = directions
-    x1, y1 = i1 % boardSize[0], i1 // boardSize[0]  # figure out x and y coordinates of the start and end
-    x2, y2 = i2 % boardSize[0], i2 // boardSize[0]
-
-    if abs(x1 - x2) != abs(y1 - y2) and not (x1 - x2 == 0 or y1 - y2 == 0):  # check if this move is possible
-        raise Exception(f"something went wrong ({i1} -> {i2}; {x1}, {y1} -> {x2}, {y2})")
-    xd, yd = x2 - x1, y2 - y1
-    d = str()
-    if num:
-        d = str(max(abs(xd), abs(yd)))
-        if d == "0":
-            d = ""
-    
-    if yd < 0:
-        d += dirs[0]
-    elif yd > 0:
-        d += dirs[2]
-    if xd < 0:
-        d += dirs[3]
-    elif xd > 0:
-        d += dirs[1]
-    
-    return d
 
 
 class Board:
     """
-    Class which houses all the board generation and position functions.
-    """
-
+        Class which houses all the board generation and position functions.
+        """
     def __init__(self, window, sizes: list, sqW=50, sqH=50, xPos=None, yPos=None):
         """
          self.size == size of the board, being [X size, Y size]
@@ -109,7 +66,7 @@ class Board:
                                        command=lambda: self.onResize())
         self.resizeButton.grid(column=0, row=1)
 
-        self.outputBox = tk.Text(self.buttonframe, state="disabled")
+        self.outputBox = tk.Text(self.buttonframe, state="disabled", height=10, width=40)
         self.outputBox.grid(column=0, row=2, columnspan=2)
 
         self.pos = list()
@@ -127,6 +84,48 @@ class Board:
 
         self.paths = list()
         self.generatePath(times=pathNums)
+
+    def parsePath(self, i: str, s: int):  # edit: returned to the code and realized it is unreadable, added comments
+        c = ("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
+        d = [baseDirs[directions.index(x)] for x in i if not (x in c)]  # direction specified in cardinal directions
+        n = int("".join([x for x in i if x in c]))  # number of steps to do in a direction
+
+        p = {"n": -self.size[0], "e": 1, "s": self.size[0], "w": -1}
+
+        if n is None:  # if no step is defined, do one step
+            n = 1
+
+        y = s
+        for i in range(len(d)):  # put it all into my stupid one-integer system for coordinates
+            y += (p.get(d[i]) * n)
+
+        return y
+
+    def parsePos(self, i1: int, i2: int, dirs: tuple = None, num: bool = True):  # inverse of the previous function
+        if dirs is None:
+            dirs = directions
+        x1, y1 = i1 % self.size[0], i1 // self.size[0]  # figure out x and y coordinates of the start and end
+        x2, y2 = i2 % self.size[0], i2 // self.size[0]
+
+        if abs(x1 - x2) != abs(y1 - y2) and not (x1 - x2 == 0 or y1 - y2 == 0):  # check if this move is possible
+            raise Exception(f"something went wrong ({i1} -> {i2}; {x1}, {y1} -> {x2}, {y2})")
+        xd, yd = x2 - x1, y2 - y1
+        d = str()
+        if num:
+            d = str(max(abs(xd), abs(yd)))
+            if d == "0":
+                d = ""
+
+        if yd < 0:
+            d += dirs[0]
+        elif yd > 0:
+            d += dirs[2]
+        if xd < 0:
+            d += dirs[3]
+        elif xd > 0:
+            d += dirs[1]
+
+        return d
 
     def initCanvas(self, canvas: tk.Canvas, draw: bool = True, size: list = None, sq: list = None, lines: list = None):
         if sq is None:
@@ -185,7 +184,7 @@ class Board:
                         endPos = x + rand[0] * f.get(rand[1]).get("x") + \
                                  self.size[0] * (y + rand[0] * f.get(rand[1]).get("y"))
                         self.pos.append(endPos)
-                        self.paths[b].append(parsePos(self.pos[j + b * times[b]], self.pos[j + b * times[b] + 1]))
+                        self.paths[b].append(self.parsePos(self.pos[j + b * times[b]], self.pos[j + b * times[b] + 1]))
                         if j == times[b] - 1:
                             flag = True
                         self.linesToDraw.append((x + y * self.size[0], endPos, flag))
@@ -224,8 +223,8 @@ class Board:
             p2 % s * self.squareSize[0] + .5 * self.squareSize[0], \
             p2 // s * self.squareSize[1] + .5 * self.squareSize[1]
         xm, ym = \
-            (x1 + x2) / 2 + f.get(parsePos(p1, p2, dirs=baseDirs, num=False)).get("x"), \
-            (y1 + y2) / 2 + f.get(parsePos(p1, p2, dirs=baseDirs, num=False)).get("y")
+            (x1 + x2) / 2 + f.get(self.parsePos(p1, p2, dirs=baseDirs, num=False)).get("x"), \
+            (y1 + y2) / 2 + f.get(self.parsePos(p1, p2, dirs=baseDirs, num=False)).get("y")
 
         canvas.create_line([x1, y1, xm, ym, x2, y2], smooth=True, fill=clr, arrow="last",
                            tags=("line", "arrow", clr, str(index)))
@@ -236,14 +235,17 @@ class Board:
         xPos, yPos = None, None
         if not rand.get():
             exitstatus = False  # what to do after cancelling
+
             def newGameCommand(e, scaleVar: tk.IntVar, x, y):
                 scaleVar.set(round(float(e)))
                 canvas.delete("circle")
                 self.centeredCircle(canvas, x.get() - 1, y.get() - 1, fill="blue")
+
             def done():
                 nonlocal exitstatus
                 prompt.destroy()
                 exitstatus = True
+
             def cancel():
                 prompt.destroy()
             prompt = tk.Toplevel()
@@ -313,9 +315,8 @@ class Board:
                 inp[0].set(inp_[0])
                 inp[1].set(inp_[1])
                 return
-            self.size[0], self.size[1] = int(inp[0].get()), int(inp[1].get())
             inp_[0], inp_[1] = inp[0].get(), inp[1].get()
-            self.initCanvas(cnv, draw=False)
+            self.initCanvas(cnv, draw=False, size=[int(x) for x in inp_])
         exitstatus = False
 
         def done():
@@ -326,11 +327,10 @@ class Board:
         def cancel():
             prompt.destroy()
 
-        oldSize = [int(self.size[0]), int(self.size[1])]
         prompt = tk.Toplevel()
         frm = ttk.Frame(prompt, padding=3)
         frm.grid(column=0, row=0)
-        ttk.Label(frm, text="Enter size of playing field (min 2x2, max 20x20)", padding=(0, 0, 0, 3))\
+        ttk.Label(frm, text="Enter size of playing field (min 2x2, max 20x20)", padding=(0, 0, 0, 3)) \
             .grid(column=0, row=0, columnspan=2)
         inp = [tk.StringVar(value=self.size[0]), tk.StringVar(value=self.size[1])]
         inp_ = [str(self.size[0]), str(self.size[1])]  # backup for validation
@@ -361,14 +361,13 @@ class Board:
 
         if not exitstatus:
             return
-
-        if oldSize == self.size:
+        if [int(x) for x in inp_] == self.size:  # if nothing has changed, return
             return
         if msgbox.askokcancel("Use configuration?", "Do you want to use this board configuration?\n\
         Your current game will be discarded."):
+            self.size = [int(x) for x in inp_]
+            print(self.size)
             self.newButton.invoke()
-        else:
-            self.size = oldSize
 
     #   ### Drawing Utils ###
 
@@ -386,8 +385,8 @@ class Board:
 win = tk.Tk()
 win.title("EasyRoute")
 boardSize = [6, 6]
-boardIndicators = [["1", "2", "3", "4", "5", "6"],
-                   ["A", "B", "C", "D", "E", "F"]]  # how the board is indicated at the sides (1st E-W, 2nd N-S)
+boardIndicators = [["1", "2", "3", "4", "5", "6"],  # how the board is indicated at the sides (1st E-W, 2nd N-S)
+                   [x for x in "ABCDEFGHIJKLMNOPQRSTUVWXYZ"]]
 directions = ("S", "V", "J", "Z")  # cardinal direction names of the board (direction definition going ↑→↓←)
 baseDirs = ("n", "e", "s", "w")  # cardinal directions that are used in the code, do not change
 # note that the hardcoded directions will always be lowercase and output will always be uppercase in the code
@@ -397,4 +396,3 @@ pathNums = [20, 15, 10, 5]
 if __name__ == "__main__":
     brd = Board(win, boardSize, sqW=50, sqH=50)
     win.mainloop()
-# newBoard(boardSize)
