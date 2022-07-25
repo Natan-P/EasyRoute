@@ -29,8 +29,6 @@ import tkinter.ttk as ttk
 import tkinter.messagebox as msgbox
 
 
-
-
 class Board:
     """
         Class which houses all the board generation and position functions.
@@ -44,7 +42,7 @@ class Board:
         self.squareSize = [sqW, sqH]  # initializes square size to a square
         self.size = sizes
 
-        self.linesToDraw = list()
+        self.linesToDraw = []
 
         self.mainframe = ttk.Frame(window, padding=(3, 3, 3, 3))
         self.mainframe.grid(column=0, row=0)
@@ -53,8 +51,8 @@ class Board:
                              background="#ffffff", bd=0, highlightthickness=0)
         self.cnv.grid(column=0, row=0)
 
-        self.buttonframe = ttk.Frame(self.mainframe)
-        self.buttonframe.grid(column=1, row=0)
+        self.buttonframe = ttk.Frame(self.mainframe, padding=(3, 0, 0, 0))
+        self.buttonframe.grid(column=1, row=0, sticky="nw")
         self.randVal = tk.BooleanVar(value=True)
         self.newButton = ttk.Button(self.buttonframe, text="New Game",
                                     command=lambda: self.onNewGame(times=pathNums, rand=self.randVal))
@@ -66,23 +64,21 @@ class Board:
                                        command=lambda: self.onResize())
         self.resizeButton.grid(column=0, row=1)
 
-        self.outputBox = tk.Text(self.buttonframe, state="disabled", height=10, width=40)
-        self.outputBox.grid(column=0, row=2, columnspan=2)
+        self.outputBox = tk.Text(self.buttonframe, state="disabled", height=15, width=40, wrap="word")
+        self.outputBox.grid(column=0, row=2, columnspan=2, pady=(3, 0))
 
-        self.pos = list()
+        self.pos = []
 
         if xPos is not None:
             self.pos.append(xPos)  # initializes first X coordinate
-
         else:
             self.pos.append(random.randint(0, self.size[0]-1))
         if yPos is not None:
             self.pos[-1] += yPos * sizes[0]  # same as before but Y coord
-
         else:
             self.pos[-1] += random.randint(0, self.size[1]-1) * sizes[0]
 
-        self.paths = list()
+        self.paths = "1. "
         self.generatePath(times=pathNums)
 
     def parsePath(self, i: str, s: int):  # edit: returned to the code and realized it is unreadable, added comments
@@ -110,7 +106,7 @@ class Board:
         if abs(x1 - x2) != abs(y1 - y2) and not (x1 - x2 == 0 or y1 - y2 == 0):  # check if this move is possible
             raise Exception(f"something went wrong ({i1} -> {i2}; {x1}, {y1} -> {x2}, {y2})")
         xd, yd = x2 - x1, y2 - y1
-        d = str()
+        d = ""
         if num:
             d = str(max(abs(xd), abs(yd)))
             if d == "0":
@@ -156,8 +152,7 @@ class Board:
         startPos == position to start from
            times == times to repeat, with integers in a list that define how many turns each player takes
         """
-
-        self.linesToDraw = list()
+        self.linesToDraw = []
 
         if startPos is not None:
             x, y = startPos % self.size[0], startPos // self.size[0]
@@ -174,25 +169,30 @@ class Board:
         z = True  # defines whether to do another try of path generation or not
         flag = False  # draw a flag on this line (set to true if it's the last step of the sequence)
 
-        for b in range(len(times)):
-            self.paths.append(list())
-            for j in range(times[b]):
-                while z:
-                    rand = random.choice(bias), random.choice(dirs)
-                    if -1 < x + f.get(rand[1]).get("x") * rand[0] < self.size[0] and \
-                            -1 < y + f.get(rand[1]).get("y") * rand[0] < self.size[1]:
-                        endPos = x + rand[0] * f.get(rand[1]).get("x") + \
-                                 self.size[0] * (y + rand[0] * f.get(rand[1]).get("y"))
-                        self.pos.append(endPos)
-                        self.paths[b].append(self.parsePos(self.pos[j + b * times[b]], self.pos[j + b * times[b] + 1]))
-                        if j == times[b] - 1:
-                            flag = True
-                        self.linesToDraw.append((x + y * self.size[0], endPos, flag))
-                        flag = False
-                        z = False
-                        x = x + rand[0] * f.get(rand[1]).get("x")
-                        y = y + rand[0] * f.get(rand[1]).get("y")
-                z = True
+        for j in range(times[-1]):
+            while z:
+                rand = random.choice(bias), random.choice(dirs)
+                if -1 < x + f.get(rand[1]).get("x") * rand[0] < self.size[0] and \
+                        -1 < y + f.get(rand[1]).get("y") * rand[0] < self.size[1]:
+                    endPos = x + rand[0] * f.get(rand[1]).get("x") + \
+                             self.size[0] * (y + rand[0] * f.get(rand[1]).get("y"))
+                    self.pos.append(endPos)
+                    path = self.parsePos(self.pos[j], self.pos[j + 1])
+                    self.paths += f"{path}, "
+                    if any([j+1 == x for x in times]):
+                        flag = True
+                        self.paths = f"{self.paths[:-2]}{chr(10)+chr(10)+str(pathNums.index(j+1)+2)+'. ' if pathNums.index(j+1)+1 != len(times) else ''}"
+                    self.linesToDraw.append((x + y * self.size[0], endPos, flag))
+                    flag = False
+                    z = False
+                    x = x + rand[0] * f.get(rand[1]).get("x")
+                    y = y + rand[0] * f.get(rand[1]).get("y")
+            z = True
+
+        self.outputBox.delete(1.0, "end")
+        self.outputBox["state"] = "normal"
+        self.outputBox.insert(1.0, self.paths)
+        self.outputBox["state"] = "disabled"
         self.initCanvas(self.cnv)
 
     def drawPathLine(self, p1: int, p2: int, flag=False, clr="black", canvas: tk.Canvas = None, index="unindexed"):
@@ -283,7 +283,7 @@ class Board:
             xPos, yPos = topScaleVar.get()-1, botScaleVar.get()-1
 
             self.cnv.delete("line||flag||circle")
-        self.pos = list()
+        self.pos = []
 
         if xPos is not None:  # literally just reused code, read comments from line 116
             self.pos.append(xPos)
@@ -294,7 +294,7 @@ class Board:
         else:
             self.pos[-1] += random.randint(0, self.size[1]-1) * self.size[0]
 
-        self.paths = list()
+        self.paths = "1. "
         self.generatePath(times=times)
 
     def onResize(self):
@@ -389,9 +389,9 @@ boardIndicators = [["1", "2", "3", "4", "5", "6"],  # how the board is indicated
                    [x for x in "ABCDEFGHIJKLMNOPQRSTUVWXYZ"]]
 directions = ("S", "V", "J", "Z")  # cardinal direction names of the board (direction definition going ↑→↓←)
 baseDirs = ("n", "e", "s", "w")  # cardinal directions that are used in the code, do not change
-# note that the hardcoded directions will always be lowercase and output will always be uppercase in the code
+# note that the hardcoded directions will always be lowercase
 # the output shown to the user will be formatted later
-pathNums = [20, 15, 10, 5]
+pathNums = [20, 35, 45, 50]  # at which step is the current player's turn over
 
 if __name__ == "__main__":
     brd = Board(win, boardSize, sqW=50, sqH=50)
